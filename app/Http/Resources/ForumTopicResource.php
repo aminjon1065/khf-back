@@ -2,34 +2,44 @@
 
 namespace App\Http\Resources;
 
-use App\Models\ForumTopic;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 /**
- * @mixin ForumTopic
+ * @mixin Entry
  */
 class ForumTopicResource extends JsonResource
 {
     /**
-     * Соответствует ForumTopic на фронтенде
-     * (khf-front/lib/content/forum.ts). Локаль уже выставлена
-     * SetLocaleFromRequest, переводимые поля отдаём через
-     * магические аксессоры spatie/translatable.
-     *
      * @return array<string, mixed>
      */
     public function toArray(Request $request): array
     {
+        $locale = app()->getLocale();
+        $data = $this->data ?? [];
+        $global = $data['global'] ?? [];
+        $locData = $data[$locale] ?? $data['tg'] ?? [];
+
+        $categoryId = $global['category_id'] ?? null;
+        $categorySlug = null;
+        if ($categoryId) {
+            $catEntry = Entry::find($categoryId);
+            if ($catEntry) {
+                $categorySlug = $catEntry->slug;
+            }
+        }
+
+        $date = $global['last_activity'] ? Carbon::parse($global['last_activity'])->format('d.m.Y H:i') : '';
+
         return [
-            'id' => $this->id,
-            'title' => $this->title,
-            'category' => $this->category?->slug,
-            'author' => $this->author,
-            'replies' => (int) $this->replies,
-            'views' => (int) $this->views,
-            'lastActivity' => $this->last_activity,
-            'pinned' => (bool) $this->pinned,
+            'id' => $this->slug ?? $this->id,
+            'category' => $categorySlug,
+            'title' => $locData['title'] ?? '',
+            'author' => $global['author'] ?? '',
+            'replies' => (int) ($global['replies'] ?? 0),
+            'views' => (int) ($global['views'] ?? 0),
+            'pinned' => (bool) ($global['pinned'] ?? false),
+            'lastActivity' => $date,
         ];
     }
 }

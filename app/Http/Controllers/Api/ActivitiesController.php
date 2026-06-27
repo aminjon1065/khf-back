@@ -2,11 +2,9 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Core\Models\Entry;
 use App\Http\Controllers\Controller;
-use App\Http\Resources\DirectionResource;
-use App\Http\Resources\ProgramResource;
-use App\Models\Direction;
-use App\Models\Program;
+use App\Http\Resources\Api\V1\EntryResource;
 use Illuminate\Http\JsonResponse;
 
 class ActivitiesController extends Controller
@@ -16,10 +14,24 @@ class ActivitiesController extends Controller
      */
     public function index(): JsonResponse
     {
+        $locale = app()->getLocale();
+
+        $directions = Entry::published()
+            ->whereHas('collection', fn ($q) => $q->where('slug', 'directions'))
+            ->get()
+            ->sortBy(fn ($e) => $e->data[$locale]['sort_order'] ?? 0)
+            ->values();
+
+        $programs = Entry::published()
+            ->whereHas('collection', fn ($q) => $q->where('slug', 'programs'))
+            ->get()
+            ->sortBy(fn ($e) => $e->data[$locale]['sort_order'] ?? 0)
+            ->values();
+
         return response()->json([
             'data' => [
-                'directions' => DirectionResource::collection(Direction::ordered()->get()),
-                'programs' => ProgramResource::collection(Program::ordered()->get()),
+                'directions' => EntryResource::collection($directions),
+                'programs' => EntryResource::collection($programs),
             ],
         ]);
     }

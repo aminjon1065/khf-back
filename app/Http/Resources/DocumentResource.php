@@ -2,12 +2,12 @@
 
 namespace App\Http\Resources;
 
-use App\Models\Document;
+use App\Core\Models\Entry;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 /**
- * @mixin Document
+ * @mixin Entry
  */
 class DocumentResource extends JsonResource
 {
@@ -16,16 +16,30 @@ class DocumentResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
+        $locale = app()->getLocale();
+        $data = $this->data ?? [];
+        $global = $data['global'] ?? [];
+        $locData = $data[$locale] ?? $data['tg'] ?? [];
+
+        $categoryId = $global['category_id'] ?? null;
+        $categorySlug = null;
+        if ($categoryId) {
+            $catEntry = Entry::find($categoryId);
+            if ($catEntry) {
+                $categorySlug = $catEntry->slug;
+            }
+        }
+
         return [
             'id' => $this->slug,
             'slug' => $this->slug,
-            'title' => $this->title,
-            'category' => $this->category?->slug,
-            'number' => $this->number,
-            'date' => $this->document_date?->format('d.m.Y'),
-            'type' => $this->type->value,
-            'size' => $this->size,
-            'file' => $this->getFirstMediaUrl('file') ?: null,
+            'title' => $locData['title'] ?? '',
+            'category' => $categorySlug,
+            'number' => $global['number'] ?? '',
+            'date' => $global['document_date'] ?? null,
+            'type' => $global['type'] ?? 'PDF',
+            'size' => $global['size'] ?? '',
+            'file' => null, // Media logic here
         ];
     }
 }

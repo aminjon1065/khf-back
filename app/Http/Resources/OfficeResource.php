@@ -20,12 +20,17 @@ class OfficeResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
+        $locale = $request->route('locale') ?? app()->getLocale();
+        $data = $this->data ?? [];
+        $localized = $data[$locale] ?? [];
+        $global = $data['global'] ?? [];
+
         return [
-            'region' => $this->region,
-            'address' => $this->address,
-            'phone' => $this->phone,
-            'email' => $this->email,
-            'hours' => $this->hours,
+            'region' => $localized['region'] ?? null,
+            'address' => $localized['address'] ?? null,
+            'phone' => $global['phone'] ?? null,
+            'email' => $global['email'] ?? null,
+            'hours' => $localized['hours'] ?? null,
         ];
     }
 }

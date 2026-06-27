@@ -2,46 +2,51 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Core\Models\Entry;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\NewsResource;
-use App\Models\News;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 class NewsController extends Controller
 {
     /**
-     * GET /api/v1/news — лента (пагинация Laravel) с фильтром/поиском.
+     * GET /api/v1/news
      */
     public function index(Request $request): AnonymousResourceCollection
     {
         $perPage = min(max($request->integer('per_page', 12), 1), 50);
 
-        $query = News::query()
-            ->with('category')
+        $query = Entry::whereHas('collection', fn ($q) => $q->where('slug', 'news'))
             ->published()
             ->latest('published_at');
 
         $category = $request->string('category')->toString();
         if ($category !== '') {
-            $query->whereHas('category', fn ($q) => $q->where('slug', $category));
+            $catEntry = Entry::whereHas('collection', fn ($q) => $q->where('slug', 'news-categories'))
+                ->where('slug', $category)->first();
+            if ($catEntry) {
+                $query->where('data->global->category_id', $catEntry->id);
+            } else {
+                $query->where('id', null); // force empty
+            }
         }
 
         $search = $request->string('search')->toString();
         if ($search !== '') {
-            $query->where('title', 'like', '%'.$search.'%');
+            $locale = app()->getLocale();
+            $query->where("data->{$locale}->title", 'like', '%'.$search.'%');
         }
 
         return NewsResource::collection($query->paginate($perPage));
     }
 
     /**
-     * GET /api/v1/news/{slug} — одна опубликованная статья.
+     * GET /api/v1/news/{slug}
      */
     public function show(string $slug): NewsResource
     {
-        $news = News::query()
-            ->with('category')
+        $news = Entry::whereHas('collection', fn ($q) => $q->where('slug', 'news'))
             ->published()
             ->where('slug', $slug)
             ->firstOrFail();
@@ -50,25 +55,29 @@ class NewsController extends Controller
     }
 
     /**
-     * GET /api/v1/news/{slug}/related — похожие новости.
+     * GET /api/v1/news/{slug}/related
      */
     public function related(Request $request, string $slug): AnonymousResourceCollection
     {
-        $news = News::query()->published()->where('slug', $slug)->firstOrFail();
+        $news = Entry::whereHas('collection', fn ($q) => $q->where('slug', 'news'))
+            ->published()
+            ->where('slug', $slug)
+            ->firstOrFail();
+
         $limit = min(max($request->integer('limit', 3), 1), 12);
 
-        $related = News::query()
-            ->with('category')
+        $catId = $news->data['global']['category_id'] ?? null;
+
+        $related = Entry::whereHas('collection', fn ($q) => $q->where('slug', 'news'))
             ->published()
             ->where('id', '!=', $news->id)
-            ->when($news->news_category_id, fn ($q) => $q->where('news_category_id', $news->news_category_id))
+            ->when($catId, fn ($q) => $q->where('data->global->category_id', $catId))
             ->latest('published_at')
             ->limit($limit)
             ->get();
 
         if ($related->count() < $limit) {
-            $more = News::query()
-                ->with('category')
+            $more = Entry::whereHas('collection', fn ($q) => $q->where('slug', 'news'))
                 ->published()
                 ->where('id', '!=', $news->id)
                 ->whereNotIn('id', $related->pluck('id'))

@@ -17,9 +17,16 @@ class SetLocaleFromRequest
         /** @var list<string> $supported */
         $supported = (array) config('khf.locales', ['tg']);
 
-        $locale = $request->query('lang');
+        $locale = $request->route('locale');
 
+        // Forget the parameter so it doesn't get injected into all controller methods
+        if ($request->route()) {
+            $request->route()->forgetParameter('locale');
+        }
+
+        // Check if the provided locale is supported
         if (! is_string($locale) || ! in_array($locale, $supported, true)) {
+            // Fall back to preferred language if route locale is invalid/missing
             $locale = $request->getPreferredLanguage($supported);
         }
 

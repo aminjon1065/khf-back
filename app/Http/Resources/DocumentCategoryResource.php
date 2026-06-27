@@ -2,12 +2,12 @@
 
 namespace App\Http\Resources;
 
-use App\Models\DocumentCategory;
+use App\Core\Models\Entry;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 /**
- * @mixin DocumentCategory
+ * @mixin Entry
  */
 class DocumentCategoryResource extends JsonResource
 {
@@ -16,11 +16,13 @@ class DocumentCategoryResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
+        $locale = app()->getLocale();
+        $data = $this->data ?? [];
+        $locData = $data[$locale] ?? $data['tg'] ?? [];
+
         return [
             'id' => $this->slug,
-            'slug' => $this->slug,
-            'label' => $this->name,
-            'count' => (int) ($this->documents_count ?? $this->documents()->count()),
+            'title' => $locData['title'] ?? '',
         ];
     }
 }

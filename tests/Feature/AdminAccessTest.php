@@ -1,6 +1,9 @@
 <?php
 
+use App\Core\Models\Collection;
+use App\Core\Models\Entry;
 use App\Models\User;
+use Database\Seeders\ContentSeeder;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
@@ -37,21 +40,32 @@ it('lets an admin open the dashboard', function (): void {
         ->assertInertia(fn (AssertableInertia $page) => $page->component('admin/dashboard'));
 });
 
-it('lets an editor manage news but blocks settings and users', function (): void {
-    $this->actingAs(editorUser())->get('/admin/news')->assertOk();
+it('lets an editor manage content but blocks settings and users', function (): void {
+    $this->seed(ContentSeeder::class);
+    $collection = Collection::where('slug', 'news')->first();
+    $this->actingAs(editorUser())->get("/admin/collections/{$collection->id}/entries")->assertOk();
     $this->actingAs(editorUser())->get('/admin/settings')->assertForbidden();
     $this->actingAs(editorUser())->get('/admin/users')->assertForbidden();
 });
 
-it('creates a news item from the admin form', function (): void {
-    $this->actingAs(adminUser())->post('/admin/news', [
-        'title' => ['ru' => 'Тестовая новость', 'tg' => 'Хабари озмоишӣ', 'en' => 'Test news'],
-        'excerpt' => ['ru' => 'Анонс', 'tg' => '', 'en' => ''],
-        'body' => ['ru' => '<p>Текст</p>', 'tg' => '', 'en' => ''],
+it('creates a dynamic entry from the admin form', function (): void {
+    $this->seed(ContentSeeder::class);
+    $collection = Collection::where('slug', 'news')->first();
+    $blueprintId = $collection->blueprints()->first()->id;
+
+    $this->actingAs(adminUser())->post("/admin/collections/{$collection->id}/entries", [
+        'blueprint_id' => $blueprintId,
         'slug' => 'admin-test-news',
         'status' => 'published',
         'published_at' => '2026-06-26T09:00',
-    ])->assertRedirect('/admin/news');
+        'data' => [
+            'ru' => ['title' => 'Тестовая новость', 'body' => '<p>Текст</p>'],
+            'tg' => ['title' => 'Хабари озмоишӣ', 'body' => ''],
+            'en' => ['title' => 'Test news', 'body' => ''],
+        ],
+    ])->assertRedirect("/admin/collections/{$collection->id}/entries");
 
-    $this->assertDatabaseHas('news', ['slug' => 'admin-test-news']);
+    $this->assertDatabaseHas('entries', ['collection_id' => $collection->id]);
+    $entry = Entry::where('collection_id', $collection->id)->first();
+    expect($entry->data['ru']['title'])->toBe('Тестовая новость');
 });

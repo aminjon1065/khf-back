@@ -2,39 +2,86 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Core\Models\Media;
 use App\Http\Controllers\Controller;
-use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
-use Inertia\Response;
-use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class MediaController extends Controller
 {
-    public function index(): Response
+    public function index(Request $request)
     {
-        return Inertia::render('admin/media/index', [
-            'items' => Media::query()
-                ->latest()
-                ->get()
-                ->map(fn (Media $m): array => [
-                    'id' => $m->id,
-                    'name' => $m->name,
-                    'file_name' => $m->file_name,
-                    'mime' => $m->mime_type,
-                    'size' => $m->human_readable_size,
-                    'url' => $m->getUrl(),
-                    'preview' => str_starts_with((string) $m->mime_type, 'image/') ? $m->getUrl() : null,
-                    'collection' => $m->collection_name,
-                    'model' => class_basename((string) $m->model_type),
-                    'created' => $m->created_at?->format('d.m.Y'),
-                ]),
+        $media = Media::latest()->paginate(24);
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'data' => $media->map(function ($item) {
+                    return [
+                        'id' => $item->id,
+                        'file_name' => $item->file_name,
+                        'url' => $item->url,
+                        'mime_type' => $item->mime_type,
+                        'size' => $item->size,
+                    ];
+                }),
+                'next_page_url' => $media->nextPageUrl(),
+            ]);
+        }
+
+        return Inertia::render('System/Media/Index', [
+            'media' => $media->through(function ($item) {
+                return [
+                    'id' => $item->id,
+                    'file_name' => $item->file_name,
+                    'url' => $item->url,
+                    'mime_type' => $item->mime_type,
+                    'size' => $item->size,
+                    'created_at' => $item->created_at->toDateTimeString(),
+                ];
+            }),
         ]);
     }
 
-    public function destroy(Media $media): RedirectResponse
+    public function store(Request $request)
     {
-        $media->delete();
+        $request->validate([
+            'file' => ['required', 'file', 'max:20480'], // 20MB max
+        ]);
 
-        return back()->with('success', 'Файл удалён');
+        $file = $request->file('file');
+
+        $path = $file->store('media', 'public');
+
+        $media = Media::create([
+            'file_name' => $file->getClientOriginalName(),
+            'path' => $path,
+            'disk' => 'public',
+            'mime_type' => $file->getMimeType(),
+            'size' => $file->getSize(),
+            'user_id' => auth()->id(),
+        ]);
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'id' => $media->id,
+                'file_name' => $media->file_name,
+                'url' => $media->url,
+            ]);
+        }
+
+        return back()->with('success', 'File uploaded successfully.');
+    }
+
+    public function destroy(Media $medium)
+    {
+        Storage::disk($medium->disk)->delete($medium->path);
+        $medium->delete();
+
+        if (request()->wantsJson()) {
+            return response()->json(['message' => 'Deleted successfully']);
+        }
+
+        return back()->with('success', 'File deleted successfully.');
     }
 }

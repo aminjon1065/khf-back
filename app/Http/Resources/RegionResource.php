@@ -20,14 +20,19 @@ class RegionResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
+        $locale = $request->route('locale') ?? app()->getLocale();
+        $data = $this->data ?? [];
+        $localized = $data[$locale] ?? [];
+        $global = $data['global'] ?? [];
+
         return [
-            'id' => $this->slug,
-            'name' => $this->name,
-            'center' => $this->center,
-            'risk' => $this->risk->value,
-            'activeIncidents' => (int) $this->active_incidents,
-            'stations' => (int) $this->stations,
-            'note' => $this->note,
+            'id' => $global['slug'] ?? null,
+            'name' => $localized['name'] ?? null,
+            'center' => $localized['center'] ?? null,
+            'risk' => $global['risk'] ?? 'low',
+            'activeIncidents' => (int) ($global['active_incidents'] ?? 0),
+            'stations' => (int) ($global['stations'] ?? 0),
+            'note' => $localized['note'] ?? null,
         ];
     }
 }

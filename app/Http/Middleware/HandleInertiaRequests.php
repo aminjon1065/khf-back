@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Core\Models\Collection;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -48,6 +49,9 @@ class HandleInertiaRequests extends Middleware
                 'error' => fn () => $request->session()->get('error'),
             ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
+            'schemaCollections' => fn () => $request->user() && $request->user()->can('manage content')
+                ? Collection::orderBy('name')->get(['id', 'name', 'slug', 'icon'])
+                : [],
         ];
     }
 }

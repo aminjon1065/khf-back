@@ -2,12 +2,11 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Core\Models\Entry;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\ServiceResource;
 use App\Http\Resources\SlideResource;
-use App\Models\Service;
 use App\Models\Setting;
-use App\Models\Slide;
 use Illuminate\Http\JsonResponse;
 
 class HomeController extends Controller
@@ -17,9 +16,13 @@ class HomeController extends Controller
      */
     public function index(): JsonResponse
     {
+        $services = Entry::whereHas('collection', function ($q) {
+            $q->where('slug', 'services');
+        })->published()->get()->sortBy('data.global.sort_order');
+
         return response()->json([
             'data' => [
-                'services' => ServiceResource::collection(Service::ordered()->get()),
+                'services' => ServiceResource::collection($services),
                 'president' => $this->president(),
                 'stats' => Setting::get('site_stats'),
             ],
@@ -31,8 +34,12 @@ class HomeController extends Controller
      */
     public function slides(): JsonResponse
     {
+        $slides = Entry::whereHas('collection', function ($q) {
+            $q->where('slug', 'slides');
+        })->published()->get()->sortBy('data.global.sort_order');
+
         return response()->json([
-            'data' => SlideResource::collection(Slide::with('news')->ordered()->get()),
+            'data' => SlideResource::collection($slides),
         ]);
     }
 

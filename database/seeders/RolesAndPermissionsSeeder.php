@@ -18,6 +18,7 @@ class RolesAndPermissionsSeeder extends Seeder
         /** @var list<string> $permissions */
         $permissions = [
             'view dashboard',
+            'manage schema',
             'manage news',
             'manage documents',
             'manage structure',
@@ -26,6 +27,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'manage regions',
             'manage contacts',
             'manage home',
+            'manage content',
             'publish content',
             'manage media',
             'manage submissions',
@@ -43,8 +45,8 @@ class RolesAndPermissionsSeeder extends Seeder
         $admin = Role::findOrCreate('admin', 'web');
         $admin->syncPermissions($permissionModels->values());
 
-        // Редактор: весь контент, но без управления настройками/пользователями/ролями.
-        $adminOnly = ['manage settings', 'manage users', 'manage roles'];
+        // Редактор: весь контент, но без управления настройками/пользователями/ролями/схемами.
+        $adminOnly = ['manage schema', 'manage settings', 'manage users', 'manage roles'];
         $editor = Role::findOrCreate('editor', 'web');
         $editor->syncPermissions(
             $permissionModels->except($adminOnly)->values(),

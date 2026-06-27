@@ -9,13 +9,14 @@ use App\Http\Controllers\Api\HomeController;
 use App\Http\Controllers\Api\MapController;
 use App\Http\Controllers\Api\NewsController;
 use App\Http\Controllers\Api\StructureController;
+use App\Http\Controllers\Api\V1\ContentController;
 use App\Http\Middleware\EnsureFrontendRequest;
 use App\Http\Middleware\SetLocaleFromRequest;
 use Illuminate\Support\Facades\Route;
 
 // Публичный API только для фронтенда (Next.js): закрыт токеном,
 // локаль из Accept-Language. Базовый префикс — /api/v1.
-Route::prefix('v1')
+Route::prefix('v1/{locale}')
     ->middleware([EnsureFrontendRequest::class, SetLocaleFromRequest::class])
     ->group(function () {
         // ——— Новости ———
@@ -39,4 +40,8 @@ Route::prefix('v1')
             Route::post('contact', [FormController::class, 'contact']);
             Route::post('subscriptions', [FormController::class, 'subscribe']);
         });
+
+        // ——— Headless CMS (Dynamic Data) ———
+        Route::get('/{collection:slug}', [ContentController::class, 'index']);
+        Route::get('/{collection:slug}/{entry:slug}', [ContentController::class, 'show']);
     });

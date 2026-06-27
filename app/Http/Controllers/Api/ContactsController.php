@@ -2,11 +2,10 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Core\Models\Entry;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\HotlineResource;
 use App\Http\Resources\OfficeResource;
-use App\Models\Hotline;
-use App\Models\Office;
 use Illuminate\Http\JsonResponse;
 
 class ContactsController extends Controller
@@ -17,15 +16,29 @@ class ContactsController extends Controller
      */
     public function index(): JsonResponse
     {
-        $headOffice = Office::query()->where('is_head', true)->first();
+        $headOffice = Entry::published()
+            ->whereHas('collection', fn ($q) => $q->where('slug', 'offices'))
+            ->get()
+            ->firstWhere('data.global.is_head', true);
+
+        $offices = Entry::published()
+            ->whereHas('collection', fn ($q) => $q->where('slug', 'offices'))
+            ->get()
+            ->reject(fn ($e) => $e->data['global']['is_head'] ?? false)
+            ->sortBy(fn ($e) => $e->data['global']['sort_order'] ?? 0)
+            ->values();
+
+        $hotlines = Entry::published()
+            ->whereHas('collection', fn ($q) => $q->where('slug', 'hotlines'))
+            ->get()
+            ->sortBy(fn ($e) => $e->data['global']['sort_order'] ?? 0)
+            ->values();
 
         return response()->json([
             'data' => [
-                'hotlines' => HotlineResource::collection(Hotline::ordered()->get()),
+                'hotlines' => HotlineResource::collection($hotlines),
                 'headOffice' => $headOffice ? new OfficeResource($headOffice) : null,
-                'offices' => OfficeResource::collection(
-                    Office::query()->where('is_head', false)->ordered()->get()
-                ),
+                'offices' => OfficeResource::collection($offices),
             ],
         ]);
     }

@@ -14,6 +14,7 @@ uses(RefreshDatabase::class);
 
 beforeEach(function (): void {
     Http::fake();
+    $this->withoutVite();
     $this->seed(RolesAndPermissionsSeeder::class);
 });
 

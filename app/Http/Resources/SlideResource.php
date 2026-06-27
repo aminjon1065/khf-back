@@ -2,51 +2,33 @@
 
 namespace App\Http\Resources;
 
-use App\Models\Slide;
+use App\Core\Models\Entry;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 /**
- * @mixin Slide
+ * @mixin Entry
  */
 class SlideResource extends JsonResource
 {
     /**
-     * Соответствует Slide на фронтенде (khf-front/lib/data.ts).
-     * Локаль уже выставлена middleware, поэтому переводимые
-     * поля отдаём через магические аксессоры spatie/translatable.
-     *
      * @return array<string, mixed>
      */
     public function toArray(Request $request): array
     {
+        $locale = app()->getLocale();
+        $data = $this->data ?? [];
+        $global = $data['global'] ?? [];
+        $locData = $data[$locale] ?? $data['tg'] ?? []; // Fallback to 'tg'
+
         return [
             'id' => $this->id,
-            'category' => $this->category,
-            'title' => $this->title,
-            'date' => $this->date,
-            'source' => $this->source,
-            'newsSlug' => $this->news?->slug,
-            'image' => $this->imageUrls(),
-        ];
-    }
-
-    /**
-     * @return array{thumb:string, card:string, hero:string, original:string}|null
-     */
-    private function imageUrls(): ?array
-    {
-        $media = $this->getFirstMedia('image');
-
-        if ($media === null) {
-            return null;
-        }
-
-        return [
-            'thumb' => $media->getUrl('thumb'),
-            'card' => $media->getUrl('card'),
-            'hero' => $media->getUrl('hero'),
-            'original' => $media->getUrl(),
+            'category' => $locData['category'] ?? '',
+            'title' => $locData['title'] ?? '',
+            'date' => $global['date'] ?? '',
+            'source' => $global['source'] ?? '',
+            'newsSlug' => null, // no longer directly mapped via relations unless we load the related entry
+            'image' => null, // handled by Media engine in frontend
         ];
     }
 }

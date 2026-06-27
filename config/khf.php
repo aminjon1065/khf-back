@@ -33,4 +33,29 @@ return [
         'secret' => env('NEXT_REVALIDATE_SECRET'),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | KHF Engine — First-party Modules
+    |--------------------------------------------------------------------------
+    | Associative array of name => FQCN for each module to bootstrap.
+    | Modules are loaded by ModuleLoader in two phases: register() then boot().
+    |
+    | Example:
+    |   'identity' => \App\Modules\Identity\IdentityModule::class,
+    */
+    'modules' => [],
+
+    /*
+    |--------------------------------------------------------------------------
+    | KHF Engine — Third-party Plugins
+    |--------------------------------------------------------------------------
+    | Plain list of FQCNs for each plugin installed via Composer.
+    | Plugins must implement PluginInterface and may only interact with the
+    | system through the HookManager and EventBus.
+    |
+    | Example:
+    |   \Acme\SeoPlugin\SeoPlugin::class,
+    */
+    'plugins' => [],
+
 ];

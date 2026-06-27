@@ -2,32 +2,32 @@
 
 namespace App\Http\Resources;
 
-use App\Models\ForumCategory;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 /**
- * @mixin ForumCategory
+ * @mixin Entry
  */
 class ForumCategoryResource extends JsonResource
 {
     /**
-     * Соответствует ForumCategory на фронтенде
-     * (khf-front/lib/content/forum.ts). Локаль уже выставлена
-     * SetLocaleFromRequest, переводимые поля отдаём через
-     * магические аксессоры spatie/translatable.
-     *
      * @return array<string, mixed>
      */
     public function toArray(Request $request): array
     {
+        $locale = app()->getLocale();
+        $data = $this->data ?? [];
+        $global = $data['global'] ?? [];
+        $locData = $data[$locale] ?? $data['tg'] ?? [];
+
         return [
             'id' => $this->slug,
-            'title' => $this->title,
-            'description' => $this->description,
-            'topics' => (int) $this->topics_count,
-            'posts' => (int) $this->posts_count,
-            'icon' => $this->icon,
+            'slug' => $this->slug,
+            'icon' => $global['icon'] ?? '',
+            'title' => $locData['title'] ?? '',
+            'description' => $locData['description'] ?? '',
+            'topics_count' => Entry::whereHas('collection', fn ($q) => $q->where('slug', 'forum-topics'))->where('data->global->category_id', $this->id)->count(),
+            'posts_count' => 0, // Simplified for now
         ];
     }
 }

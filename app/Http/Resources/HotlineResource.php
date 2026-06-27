@@ -20,11 +20,16 @@ class HotlineResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
+        $locale = $request->route('locale') ?? app()->getLocale();
+        $data = $this->data ?? [];
+        $localized = $data[$locale] ?? [];
+        $global = $data['global'] ?? [];
+
         return [
-            'number' => $this->number,
-            'label' => $this->label,
-            'note' => $this->note,
-            'primary' => $this->is_primary,
+            'number' => $global['number'] ?? null,
+            'label' => $localized['label'] ?? null,
+            'note' => $localized['note'] ?? null,
+            'primary' => $global['is_primary'] ?? false,
         ];
     }
 }

@@ -4,6 +4,7 @@ import {
     Bell,
     Building,
     Building2,
+    Database,
     FileText,
     FolderTree,
     Image,
@@ -39,21 +40,13 @@ import { useCurrentUrl } from '@/hooks/use-current-url';
 import type { Auth } from '@/types';
 import type { LucideIcon } from 'lucide-react';
 
-type Item = { title: string; href: string; icon: LucideIcon; can?: string };
+type Item = { title: string; href: string; icon: LucideIcon | any; can?: string };
 type Group = { label: string; items: Item[] };
 
-const GROUPS: Group[] = [
+const STATIC_GROUPS: Group[] = [
     {
         label: 'Обзор',
         items: [{ title: 'Дашборд', href: '/admin', icon: LayoutGrid }],
-    },
-    {
-        label: 'Контент',
-        items: [
-            { title: 'Новости', href: '/admin/news', icon: Newspaper, can: 'manage news' },
-            { title: 'Документы', href: '/admin/documents', icon: FileText, can: 'manage documents' },
-            { title: 'Категории документов', href: '/admin/document-categories', icon: FolderTree, can: 'manage documents' },
-        ],
     },
     {
         label: 'Структура',
@@ -103,6 +96,7 @@ const GROUPS: Group[] = [
     {
         label: 'Система',
         items: [
+            { title: 'Схемы (Builder)', href: '/admin/schema/collections', icon: Database, can: 'manage schema' },
             { title: 'Медиатека', href: '/admin/media', icon: Image, can: 'manage media' },
             { title: 'Настройки', href: '/admin/settings', icon: Settings, can: 'manage settings' },
             { title: 'Пользователи', href: '/admin/users', icon: Users, can: 'manage users' },
@@ -112,10 +106,23 @@ const GROUPS: Group[] = [
 
 export function AdminSidebar() {
     const { isCurrentUrl } = useCurrentUrl();
-    const { auth } = usePage<{ auth: Auth }>().props;
+    const { auth, schemaCollections = [] } = usePage<{ auth: Auth, schemaCollections: any[] }>().props;
     const permissions = auth.permissions ?? [];
 
     const can = (permission?: string) => !permission || permissions.includes(permission);
+
+    // Build Dynamic Content Group
+    const contentGroup: Group = {
+        label: 'Контент',
+        items: schemaCollections.map((collection) => ({
+            title: collection.name,
+            href: `/admin/content/collections/${collection.id}/entries`,
+            icon: Newspaper, // We could use collection.icon here if we stored valid lucide icons
+            can: 'manage content',
+        })),
+    };
+
+    const GROUPS = [contentGroup, ...STATIC_GROUPS];
 
     return (
         <Sidebar collapsible="icon" variant="inset">

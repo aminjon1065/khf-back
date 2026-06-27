@@ -2,32 +2,33 @@
 
 namespace App\Http\Resources;
 
-use App\Models\Service;
+use App\Core\Models\Entry;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 /**
- * @mixin Service
+ * @mixin Entry
  */
 class ServiceResource extends JsonResource
 {
     /**
-     * Соответствует Service на фронтенде (khf-front/lib/data.ts).
-     * Локаль уже выставлена middleware, поэтому переводимые
-     * поля отдаём через магические аксессоры spatie/translatable.
-     *
      * @return array<string, mixed>
      */
     public function toArray(Request $request): array
     {
+        $locale = app()->getLocale();
+        $data = $this->data ?? [];
+        $global = $data['global'] ?? [];
+        $locData = $data[$locale] ?? $data['tg'] ?? []; // Fallback to 'tg'
+
         return [
-            'id' => $this->key,
-            'title' => $this->title,
-            'subtitle' => $this->subtitle,
-            'primary' => $this->is_primary,
-            'tel' => $this->tel,
-            'route' => $this->route_key,
-            'icon' => $this->icon,
+            'id' => $global['key'] ?? '',
+            'title' => $locData['title'] ?? '',
+            'subtitle' => $locData['subtitle'] ?? '',
+            'primary' => (bool) ($global['is_primary'] ?? false),
+            'tel' => $global['tel'] ?? '',
+            'route' => $global['route_key'] ?? '',
+            'icon' => $global['icon'] ?? '',
         ];
     }
 }
