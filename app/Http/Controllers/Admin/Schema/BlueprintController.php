@@ -2,36 +2,37 @@
 
 namespace App\Http\Controllers\Admin\Schema;
 
+use App\Core\Contracts\Schema\SchemaEngineInterface;
 use App\Core\Models\Blueprint;
 use App\Core\Models\Collection;
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
+use App\Http\Requests\Schema\BlueprintRequest;
+use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
+use Inertia\Response;
 
 class BlueprintController extends Controller
 {
-    public function index(Collection $collection)
+    public function __construct(private readonly SchemaEngineInterface $engine) {}
+
+    public function index(Collection $collection): RedirectResponse
     {
         return redirect()->route('admin.schema.collections.show', $collection);
     }
 
-    public function create(Collection $collection)
+    public function create(Collection $collection): void
     {
         // Handled via modal
     }
 
-    public function store(Request $request, Collection $collection)
+    public function store(BlueprintRequest $request, Collection $collection): RedirectResponse
     {
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-        ]);
-
-        $collection->blueprints()->create($validated);
+        $this->engine->createBlueprint($request->toData($collection->id));
 
         return back()->with('success', 'Blueprint created successfully.');
     }
 
-    public function show(Blueprint $blueprint)
+    public function show(Blueprint $blueprint): Response
     {
         $blueprint->load(['collection', 'fields']);
 
@@ -40,23 +41,19 @@ class BlueprintController extends Controller
         ]);
     }
 
-    public function edit(Blueprint $blueprint)
+    public function edit(Blueprint $blueprint): void
     {
         // Handled via modal
     }
 
-    public function update(Request $request, Blueprint $blueprint)
+    public function update(BlueprintRequest $request, Blueprint $blueprint): RedirectResponse
     {
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-        ]);
-
-        $blueprint->update($validated);
+        $blueprint->update($request->validated());
 
         return back()->with('success', 'Blueprint updated successfully.');
     }
 
-    public function destroy(Blueprint $blueprint)
+    public function destroy(Blueprint $blueprint): RedirectResponse
     {
         $blueprint->delete();
 

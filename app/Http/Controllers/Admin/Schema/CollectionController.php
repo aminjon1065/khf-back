@@ -2,40 +2,38 @@
 
 namespace App\Http\Controllers\Admin\Schema;
 
+use App\Core\Contracts\Schema\SchemaEngineInterface;
 use App\Core\Models\Collection;
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
+use App\Http\Requests\Schema\CollectionRequest;
+use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
+use Inertia\Response;
 
 class CollectionController extends Controller
 {
-    public function index()
+    public function __construct(private readonly SchemaEngineInterface $engine) {}
+
+    public function index(): Response
     {
         return Inertia::render('Schema/Collections/Index', [
             'collections' => Collection::withCount('blueprints')->latest()->get(),
         ]);
     }
 
-    public function create()
+    public function create(): void
     {
         // Typically handled via modal in Index
     }
 
-    public function store(Request $request)
+    public function store(CollectionRequest $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'slug' => 'required|string|max:255|unique:collections,slug',
-            'description' => 'nullable|string',
-            'icon' => 'nullable|string|max:255',
-        ]);
-
-        Collection::create($validated);
+        $this->engine->createCollection($request->toData());
 
         return back()->with('success', 'Collection created successfully.');
     }
 
-    public function show(Collection $collection)
+    public function show(Collection $collection): Response
     {
         $collection->load('blueprints.fields');
 
@@ -44,26 +42,19 @@ class CollectionController extends Controller
         ]);
     }
 
-    public function edit(Collection $collection)
+    public function edit(Collection $collection): void
     {
         // Handled via modal
     }
 
-    public function update(Request $request, Collection $collection)
+    public function update(CollectionRequest $request, Collection $collection): RedirectResponse
     {
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'slug' => 'required|string|max:255|unique:collections,slug,'.$collection->id,
-            'description' => 'nullable|string',
-            'icon' => 'nullable|string|max:255',
-        ]);
-
-        $collection->update($validated);
+        $collection->update($request->validated());
 
         return back()->with('success', 'Collection updated successfully.');
     }
 
-    public function destroy(Collection $collection)
+    public function destroy(Collection $collection): RedirectResponse
     {
         $collection->delete();
 

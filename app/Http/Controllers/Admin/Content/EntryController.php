@@ -2,17 +2,20 @@
 
 namespace App\Http\Controllers\Admin\Content;
 
-use App\Core\Models\Blueprint;
+use App\Core\Contracts\Schema\SchemaEngineInterface;
 use App\Core\Models\Collection;
 use App\Core\Models\Entry;
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-use Illuminate\Support\Str;
+use App\Http\Requests\Content\EntryRequest;
+use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
+use Inertia\Response;
 
 class EntryController extends Controller
 {
-    public function index(Collection $collection)
+    public function __construct(private readonly SchemaEngineInterface $engine) {}
+
+    public function index(Collection $collection): Response
     {
         $entries = $collection->entries()->with('author')->latest()->paginate(20);
 
@@ -22,7 +25,7 @@ class EntryController extends Controller
         ]);
     }
 
-    public function create(Collection $collection)
+    public function create(Collection $collection): Response
     {
         // For MVP, we assume the first blueprint is used. Later we can pass ?blueprint_id=
         $blueprint = $collection->blueprints()->with('fields')->firstOrFail();
@@ -35,38 +38,15 @@ class EntryController extends Controller
         ]);
     }
 
-    public function store(Request $request, Collection $collection)
+    public function store(EntryRequest $request, Collection $collection): RedirectResponse
     {
-        $blueprint = Blueprint::with('fields')->findOrFail($request->input('blueprint_id'));
-
-        // Basic validation
-        $request->validate([
-            'status' => 'required|in:draft,published',
-            'data' => 'required|array',
-        ]);
-
-        $entry = new Entry;
-        $entry->collection_id = $collection->id;
-        $entry->blueprint_id = $blueprint->id;
-        $entry->author_id = auth()->id();
-        $entry->status = $request->input('status');
-        $entry->data = $request->input('data');
-
-        // Generate a slug based on title if possible, or use UUID
-        $title = $request->input('data.tg.title') ?? $request->input('data.global.title') ?? 'entry-'.Str::random(6);
-        $entry->slug = Str::slug($title).'-'.Str::random(4);
-
-        if ($entry->status === 'published') {
-            $entry->published_at = now();
-        }
-
-        $entry->save();
+        $this->engine->createEntry($request->toCreateData($collection, $request->user()?->id));
 
         return redirect()->route('admin.content.collections.entries.index', $collection)
             ->with('success', 'Entry created successfully.');
     }
 
-    public function edit(Entry $entry)
+    public function edit(Entry $entry): Response
     {
         $entry->load('collection');
         $blueprint = $entry->blueprint()->with('fields')->firstOrFail();
@@ -79,27 +59,15 @@ class EntryController extends Controller
         ]);
     }
 
-    public function update(Request $request, Entry $entry)
+    public function update(EntryRequest $request, Entry $entry): RedirectResponse
     {
-        $request->validate([
-            'status' => 'required|in:draft,published',
-            'data' => 'required|array',
-        ]);
-
-        $entry->status = $request->input('status');
-        $entry->data = $request->input('data');
-
-        if ($entry->status === 'published' && ! $entry->published_at) {
-            $entry->published_at = now();
-        }
-
-        $entry->save();
+        $this->engine->updateEntry($entry, $request->toUpdateData($request->user()?->id));
 
         return redirect()->route('admin.content.collections.entries.index', $entry->collection_id)
             ->with('success', 'Entry updated successfully.');
     }
 
-    public function destroy(Entry $entry)
+    public function destroy(Entry $entry): RedirectResponse
     {
         $collectionId = $entry->collection_id;
         $entry->delete();

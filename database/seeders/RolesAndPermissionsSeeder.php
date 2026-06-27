@@ -63,5 +63,9 @@ class RolesAndPermissionsSeeder extends Seeder
             ['name' => 'Редактор', 'password' => Hash::make('password'), 'email_verified_at' => now()],
         );
         $editorUser->syncRoles([$editor]);
+
+        // Seed the IAM granular catalogue + system roles and bridge the legacy
+        // 'admin'/'editor' roles to it.
+        $this->call(IdentityAccessSeeder::class);
     }
 }

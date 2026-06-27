@@ -18,7 +18,9 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  */
 class Blueprint extends Model
 {
+    /** @use HasFactory<BlueprintFactory> */
     use HasFactory;
+
     use HasUuids;
 
     protected $fillable = [

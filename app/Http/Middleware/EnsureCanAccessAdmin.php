@@ -2,13 +2,15 @@
 
 namespace App\Http\Middleware;
 
+use App\Modules\Identity\Authorization\Roles;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * Доступ в админку только для ролей admin/editor.
- * Тонкие права (settings/users/roles) проверяются permission-middleware на роутах.
+ * Coarse admin-shell gate for the staff roles (legacy admin/editor + the new
+ * Super Admin). Fine-grained authorization (settings/users/roles and every
+ * protected resource) is permission-based via policies + permission-middleware.
  */
 class EnsureCanAccessAdmin
 {
@@ -16,7 +18,7 @@ class EnsureCanAccessAdmin
     {
         $user = $request->user();
 
-        if ($user === null || ! $user->hasAnyRole(['admin', 'editor'])) {
+        if ($user === null || ! $user->hasAnyRole(['admin', 'editor', Roles::SUPER_ADMIN])) {
             abort(Response::HTTP_FORBIDDEN);
         }
 

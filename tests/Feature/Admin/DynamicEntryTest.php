@@ -1,5 +1,6 @@
 <?php
 
+use App\Core\Enums\EntryStatus;
 use App\Core\Models\Blueprint;
 use App\Core\Models\Collection;
 use App\Core\Models\Entry;
@@ -48,7 +49,8 @@ it('allows admin to create a new dynamic entry', function () {
 
     $entry = Entry::first();
     expect($entry)->not->toBeNull()
-        ->and($entry->status)->toBe('published')
+        ->and($entry->status)->toBe(EntryStatus::Published)
+        ->and($entry->published_at)->not->toBeNull()
         ->and($entry->data['tg']['title'])->toBe('Хабарҳои нав')
         ->and($entry->data['global']['is_featured'])->toBeTrue();
 });

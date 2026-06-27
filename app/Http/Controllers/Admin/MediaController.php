@@ -2,83 +2,77 @@
 
 namespace App\Http\Controllers\Admin;
 
-use App\Core\Models\Media;
 use App\Http\Controllers\Controller;
+use App\Modules\Media\Contracts\MediaRepositoryInterface;
+use App\Modules\Media\Contracts\MediaServiceInterface;
+use App\Modules\Media\DTOs\UploadMediaData;
+use App\Modules\Media\Enums\MediaVisibility;
+use App\Modules\Media\Exceptions\MediaException;
+use App\Modules\Media\Http\Resources\MediaResource;
+use App\Modules\Media\Models\Media;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
+use Inertia\Response;
 
+/**
+ * Admin media endpoints. Interacts with assets ONLY through the Media Engine —
+ * never Laravel Storage or Spatie.
+ */
 class MediaController extends Controller
 {
-    public function index(Request $request)
+    public function __construct(
+        private readonly MediaServiceInterface $media,
+        private readonly MediaRepositoryInterface $repository,
+    ) {}
+
+    public function index(Request $request): Response|JsonResponse
     {
-        $media = Media::latest()->paginate(24);
+        $paginator = $this->repository->paginate(24);
 
         if ($request->wantsJson()) {
             return response()->json([
-                'data' => $media->map(function ($item) {
-                    return [
-                        'id' => $item->id,
-                        'file_name' => $item->file_name,
-                        'url' => $item->url,
-                        'mime_type' => $item->mime_type,
-                        'size' => $item->size,
-                    ];
-                }),
-                'next_page_url' => $media->nextPageUrl(),
+                'data' => collect($paginator->items())
+                    ->map(fn (Media $item): array => MediaResource::make($item)->resolve($request)),
+                'next_page_url' => $paginator->nextPageUrl(),
             ]);
         }
 
         return Inertia::render('System/Media/Index', [
-            'media' => $media->through(function ($item) {
-                return [
-                    'id' => $item->id,
-                    'file_name' => $item->file_name,
-                    'url' => $item->url,
-                    'mime_type' => $item->mime_type,
-                    'size' => $item->size,
-                    'created_at' => $item->created_at->toDateTimeString(),
-                ];
-            }),
+            'media' => $paginator->through(fn (Media $item): array => MediaResource::make($item)->resolve($request)),
         ]);
     }
 
-    public function store(Request $request)
+    public function store(Request $request): RedirectResponse|JsonResponse
     {
         $request->validate([
-            'file' => ['required', 'file', 'max:20480'], // 20MB max
+            'file' => ['required', 'file', 'max:20480'], // 20 MB hard ceiling at the HTTP edge
         ]);
 
-        $file = $request->file('file');
-
-        $path = $file->store('media', 'public');
-
-        $media = Media::create([
-            'file_name' => $file->getClientOriginalName(),
-            'path' => $path,
-            'disk' => 'public',
-            'mime_type' => $file->getMimeType(),
-            'size' => $file->getSize(),
-            'user_id' => auth()->id(),
-        ]);
+        try {
+            $media = $this->media->upload(new UploadMediaData(
+                file: $request->file('file'),
+                visibility: MediaVisibility::Public,
+                uploadedBy: $request->user()?->id,
+            ));
+        } catch (MediaException $exception) {
+            throw ValidationException::withMessages(['file' => $exception->getMessage()]);
+        }
 
         if ($request->wantsJson()) {
-            return response()->json([
-                'id' => $media->id,
-                'file_name' => $media->file_name,
-                'url' => $media->url,
-            ]);
+            return response()->json(MediaResource::make($media)->resolve($request));
         }
 
         return back()->with('success', 'File uploaded successfully.');
     }
 
-    public function destroy(Media $medium)
+    public function destroy(Request $request, Media $medium): RedirectResponse|JsonResponse
     {
-        Storage::disk($medium->disk)->delete($medium->path);
-        $medium->delete();
+        $this->media->delete($medium);
 
-        if (request()->wantsJson()) {
+        if ($request->wantsJson()) {
             return response()->json(['message' => 'Deleted successfully']);
         }
 

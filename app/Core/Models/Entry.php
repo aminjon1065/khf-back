@@ -6,6 +6,7 @@ namespace App\Core\Models;
 
 use App\Core\Enums\EntryStatus;
 use App\Models\User;
+use Carbon\CarbonImmutable;
 use Database\Factories\Core\EntryFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
@@ -13,7 +14,6 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Support\Carbon;
 
 /**
  * @property string $id
@@ -25,11 +25,13 @@ use Illuminate\Support\Carbon;
  * @property string|null $slug
  * @property array<string, mixed>|null $data
  * @property int $version
- * @property Carbon|null $published_at
+ * @property CarbonImmutable|null $published_at
  */
 class Entry extends Model
 {
+    /** @use HasFactory<EntryFactory> */
     use HasFactory;
+
     use HasUuids;
     use SoftDeletes;
 
@@ -51,7 +53,7 @@ class Entry extends Model
             'status' => EntryStatus::class,
             'data' => 'array',
             'version' => 'integer',
-            'published_at' => 'datetime',
+            'published_at' => 'immutable_datetime',
         ];
     }
 

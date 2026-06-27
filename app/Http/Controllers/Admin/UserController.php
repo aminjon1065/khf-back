@@ -5,15 +5,31 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\UserRequest;
 use App\Models\User;
+use App\Modules\Identity\Actions\CreateUserAction;
+use App\Modules\Identity\Actions\DeleteUserAction;
+use App\Modules\Identity\Actions\UpdateUserAction;
+use App\Modules\Identity\DTOs\CreateUserData;
+use App\Modules\Identity\DTOs\UpdateUserData;
+use App\Modules\Identity\Models\Role;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Support\Facades\Hash;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class UserController extends Controller
 {
+    use AuthorizesRequests;
+
+    public function __construct(
+        private readonly CreateUserAction $createUser,
+        private readonly UpdateUserAction $updateUser,
+        private readonly DeleteUserAction $deleteUser,
+    ) {}
+
     public function index(): Response
     {
+        $this->authorize('viewAny', User::class);
+
         $items = User::query()
             ->with('roles')
             ->orderBy('name')
@@ -31,13 +47,17 @@ class UserController extends Controller
 
     public function create(): Response
     {
-        return Inertia::render('admin/users/form', ['roles' => ['admin', 'editor']]);
+        $this->authorize('create', User::class);
+
+        return Inertia::render('admin/users/form', ['roles' => $this->roleNames()]);
     }
 
     public function edit(User $user): Response
     {
+        $this->authorize('update', $user);
+
         return Inertia::render('admin/users/form', [
-            'roles' => ['admin', 'editor'],
+            'roles' => $this->roleNames(),
             'item' => [
                 'id' => $user->id,
                 'name' => $user->name,
@@ -49,50 +69,50 @@ class UserController extends Controller
 
     public function store(UserRequest $request): RedirectResponse
     {
+        $this->authorize('create', User::class);
+
         $data = $request->validated();
 
-        $user = User::create([
-            'name' => $data['name'],
-            'email' => $data['email'],
-            'password' => Hash::make($data['password']),
-            'email_verified_at' => now(),
-        ]);
-        $user->email_verified_at = now();
-        $user->save();
-
-        $user->syncRoles([$data['role']]);
+        $this->createUser->handle(new CreateUserData(
+            name: $data['name'],
+            email: $data['email'],
+            password: $data['password'],
+            roles: [$data['role']],
+        ));
 
         return to_route('admin.users.index')->with('success', 'Пользователь создан');
     }
 
     public function update(UserRequest $request, User $user): RedirectResponse
     {
+        $this->authorize('update', $user);
+
         $data = $request->validated();
 
-        $user->fill([
-            'name' => $data['name'],
-            'email' => $data['email'],
-        ]);
-
-        if (! empty($data['password'])) {
-            $user->password = Hash::make($data['password']);
-        }
-
-        $user->save();
-
-        $user->syncRoles([$data['role']]);
+        $this->updateUser->handle($user, new UpdateUserData(
+            name: $data['name'],
+            email: $data['email'],
+            password: ! empty($data['password']) ? $data['password'] : null,
+            roles: [$data['role']],
+        ));
 
         return to_route('admin.users.index')->with('success', 'Сохранено');
     }
 
     public function destroy(User $user): RedirectResponse
     {
-        if ($user->id === auth()->id()) {
-            abort(403, 'Нельзя удалить себя');
-        }
+        $this->authorize('delete', $user);
 
-        $user->delete();
+        $this->deleteUser->handle($user);
 
         return to_route('admin.users.index')->with('success', 'Удалено');
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function roleNames(): array
+    {
+        return array_values(array_map(strval(...), Role::query()->orderBy('name')->pluck('name')->all()));
     }
 }

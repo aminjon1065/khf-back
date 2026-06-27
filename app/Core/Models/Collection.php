@@ -19,7 +19,9 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  */
 class Collection extends Model
 {
+    /** @use HasFactory<CollectionFactory> */
     use HasFactory;
+
     use HasUuids;
 
     protected $fillable = [

@@ -24,7 +24,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  */
 class BlueprintField extends Model
 {
+    /** @use HasFactory<BlueprintFieldFactory> */
     use HasFactory;
+
     use HasUuids;
 
     protected $table = 'fields';
@@ -51,6 +53,7 @@ class BlueprintField extends Model
         ];
     }
 
+    /** @return BelongsTo<Blueprint, $this> */
     public function blueprint(): BelongsTo
     {
         return $this->belongsTo(Blueprint::class);

@@ -1,9 +1,9 @@
 <?php
 
 use App\Core\Models\Blueprint;
+use App\Core\Models\BlueprintField;
 use App\Core\Models\Collection;
 use App\Core\Models\Entry;
-use App\Core\Models\Field;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
@@ -20,7 +20,7 @@ it('can create a complete schema hierarchy and save an entry', function () {
         'name' => 'Default News Blueprint',
     ]);
 
-    Field::create([
+    BlueprintField::create([
         'blueprint_id' => $blueprint->id,
         'name' => 'Title',
         'handle' => 'title',

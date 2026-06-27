@@ -2,53 +2,37 @@
 
 namespace App\Http\Controllers\Admin\Schema;
 
+use App\Core\Contracts\Schema\SchemaEngineInterface;
 use App\Core\Models\Blueprint;
-use App\Core\Models\Field;
+use App\Core\Models\BlueprintField;
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
+use App\Http\Requests\Schema\FieldRequest;
+use Illuminate\Http\RedirectResponse;
 
 class FieldController extends Controller
 {
-    public function index(Blueprint $blueprint)
+    public function __construct(private readonly SchemaEngineInterface $engine) {}
+
+    public function index(Blueprint $blueprint): RedirectResponse
     {
         return redirect()->route('admin.schema.blueprints.show', $blueprint);
     }
 
-    public function store(Request $request, Blueprint $blueprint)
+    public function store(FieldRequest $request, Blueprint $blueprint): RedirectResponse
     {
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'handle' => 'required|string|max:255|unique:fields,handle,NULL,id,blueprint_id,'.$blueprint->id,
-            'type' => 'required|string|in:text,textarea,boolean,relation,media',
-            'is_translatable' => 'boolean',
-            'validation_rules' => 'nullable|array',
-            'settings' => 'nullable|array',
-            'order' => 'integer',
-        ]);
-
-        $blueprint->fields()->create($validated);
+        $this->engine->addField($request->toData());
 
         return back()->with('success', 'Field added successfully.');
     }
 
-    public function update(Request $request, Field $field)
+    public function update(FieldRequest $request, BlueprintField $field): RedirectResponse
     {
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'handle' => 'required|string|max:255|unique:fields,handle,'.$field->id.',id,blueprint_id,'.$field->blueprint_id,
-            'type' => 'required|string|in:text,textarea,boolean,relation,media',
-            'is_translatable' => 'boolean',
-            'validation_rules' => 'nullable|array',
-            'settings' => 'nullable|array',
-            'order' => 'integer',
-        ]);
-
-        $field->update($validated);
+        $field->update($request->validated());
 
         return back()->with('success', 'Field updated successfully.');
     }
 
-    public function destroy(Field $field)
+    public function destroy(BlueprintField $field): RedirectResponse
     {
         $field->delete();
 

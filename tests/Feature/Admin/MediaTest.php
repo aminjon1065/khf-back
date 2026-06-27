@@ -1,34 +1,36 @@
 <?php
 
-use App\Core\Models\Media;
 use App\Models\User;
+use App\Modules\Media\Models\Media;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 
 beforeEach(function () {
-    $this->user = clone User::factory()->create();
+    $this->user = User::factory()->create();
 
-    // Assign admin role to pass EnsureCanAccessAdmin
     $role = Role::firstOrCreate(['name' => 'admin']);
     $this->user->assignRole($role);
-
-    // Give specific permission
     $permission = Permission::firstOrCreate(['name' => 'manage media']);
     $this->user->givePermissionTo($permission);
 
     Storage::fake('public');
+
+    // Keep the admin HTTP tests focused and fast: no auto-conversions here.
+    config(['khf.media.conversions' => [], 'khf.media.responsive_widths' => []]);
 });
 
 it('allows authorized users to view media list', function () {
     $this->withoutVite();
-    $response = $this->actingAs($this->user)->get('/admin/media');
-    $response->assertStatus(200);
+
+    $this->actingAs($this->user)
+        ->get('/admin/media')
+        ->assertStatus(200);
 });
 
 it('allows authorized users to upload a file', function () {
-    $file = UploadedFile::fake()->image('avatar.jpg')->size(100); // 100kb
+    $file = UploadedFile::fake()->image('avatar.jpg', 200, 200)->size(100);
 
     $response = $this->actingAs($this->user)->post('/admin/media', [
         'file' => $file,
@@ -43,30 +45,35 @@ it('allows authorized users to upload a file', function () {
         'mime_type' => 'image/jpeg',
     ]);
 
-    $media = Media::first();
+    $media = Media::firstOrFail();
+    expect($media->width)->toBe(200)
+        ->and($media->height)->toBe(200)
+        ->and($media->checksum)->not->toBeNull();
     Storage::disk('public')->assertExists($media->path);
 });
 
-it('allows authorized users to delete a file', function () {
-    $file = UploadedFile::fake()->image('test.jpg');
-    $path = $file->store('media', 'public');
+it('soft deletes a file through the admin endpoint and keeps it restorable', function () {
+    $file = UploadedFile::fake()->image('test.jpg', 100, 100);
+    config(['filesystems.default' => 'public']);
 
-    $media = Media::create([
-        'file_name' => 'test.jpg',
-        'path' => $path,
-        'disk' => 'public',
-        'mime_type' => 'image/jpeg',
-        'size' => 1234,
-    ]);
+    $media = $this->actingAs($this->user)->post('/admin/media', ['file' => $file], ['Accept' => 'application/json']);
+    $created = Media::firstOrFail();
+    Storage::disk('public')->assertExists($created->path);
 
-    Storage::disk('public')->assertExists($path);
+    $this->actingAs($this->user)
+        ->delete("/admin/media/{$created->id}")
+        ->assertRedirect();
 
-    $response = $this->actingAs($this->user)->delete("/admin/media/{$media->id}");
+    $this->assertSoftDeleted('media', ['id' => $created->id]);
 
-    $response->assertRedirect(); // back()
+    // Soft delete is a trash operation: the stored file survives for restore.
+    Storage::disk('public')->assertExists($created->path);
+});
 
-    $this->assertSoftDeleted('media', ['id' => $media->id]);
+it('forbids users without the manage media permission', function () {
+    $stranger = User::factory()->create();
 
-    // In our implementation, we also delete the physical file.
-    Storage::disk('public')->assertMissing($path);
+    $this->actingAs($stranger)
+        ->get('/admin/media')
+        ->assertForbidden();
 });

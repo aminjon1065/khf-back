@@ -2,19 +2,21 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Core\Enums\EntryStatus;
 use App\Core\Models\Collection;
 use App\Core\Models\Entry;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\Api\V1\EntryResource;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 class ContentController extends Controller
 {
-    public function index(Collection $collection)
+    public function index(Collection $collection): AnonymousResourceCollection
     {
         $locale = app()->getLocale();
 
         $entries = $collection->entries()
-            ->where('status', 'published')
+            ->where('status', EntryStatus::Published->value)
             ->hasLocale($locale)
             ->latest('published_at')
             ->paginate(15);
@@ -22,11 +24,11 @@ class ContentController extends Controller
         return EntryResource::collection($entries);
     }
 
-    public function show(Collection $collection, Entry $entry)
+    public function show(Collection $collection, Entry $entry): EntryResource
     {
         $locale = app()->getLocale();
         // Ensure the entry belongs to the collection, is published, and has the requested locale
-        if ($entry->collection_id !== $collection->id || $entry->status !== 'published') {
+        if ($entry->collection_id !== $collection->id || $entry->status !== EntryStatus::Published) {
             abort(404);
         }
 

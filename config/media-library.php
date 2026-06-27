@@ -98,8 +98,13 @@ return [
 
     /*
      * The fully qualified class name of the media model.
+     *
+     * NOTE: The KHF Media Engine does NOT use Spatie Media Library's attachment
+     * system; it uses spatie/image + spatie/image-optimizer as internal adapters
+     * only. This points at the package default so the dormant config stays valid
+     * and decoupled from App\Modules\Media\Models\Media (the standalone DAM model).
      */
-    'media_model' => App\Modules\Media\Models\Media::class,
+    'media_model' => Media::class,
 
     /*
      * The fully qualified class name of the media observer.

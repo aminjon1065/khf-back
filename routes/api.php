@@ -12,6 +12,8 @@ use App\Http\Controllers\Api\StructureController;
 use App\Http\Controllers\Api\V1\ContentController;
 use App\Http\Middleware\EnsureFrontendRequest;
 use App\Http\Middleware\SetLocaleFromRequest;
+use App\Modules\Identity\Http\Resources\UserResource;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
 // Публичный API только для фронтенда (Next.js): закрыт токеном,
@@ -45,3 +47,9 @@ Route::prefix('v1/{locale}')
         Route::get('/{collection:slug}', [ContentController::class, 'index']);
         Route::get('/{collection:slug}/{entry:slug}', [ContentController::class, 'show']);
     });
+
+// Authenticated identity endpoint (Sanctum token or session). The single
+// authenticated API surface for the IAM module — returns the current user.
+Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
+    return new UserResource($request->user()->loadMissing('avatar'));
+});
