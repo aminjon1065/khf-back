@@ -16,6 +16,7 @@ class DatabaseSeeder extends Seeder
     {
         $this->call([
             RolesAndPermissionsSeeder::class, // also seeds IdentityAccessSeeder
+            LocaleSeeder::class,
             SettingsSeeder::class,
             StructureActivitiesSeeder::class,
             StranglerSeeder::class,

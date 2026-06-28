@@ -1,6 +1,7 @@
 <?php
 
 use App\Modules\Identity\IdentityModule;
+use App\Modules\Localization\LocalizationModule;
 use App\Modules\Media\MediaModule;
 use App\Modules\Media\Storage\Drivers\LocalStorageDriver;
 use App\Modules\Media\Storage\Drivers\S3StorageDriver;
@@ -138,6 +139,40 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | KHF Localization Engine
+    |--------------------------------------------------------------------------
+    | Configuration for the canonical localization subsystem
+    | (app/Modules/Localization). The locale registry and per-locale
+    | translation maps are cached; only writes invalidate them.
+    */
+    'localization' => [
+        // Cache store for the locale registry + translation maps. null = default store.
+        'cache_store' => env('LOCALIZATION_CACHE_STORE'),
+        'cache_key' => env('LOCALIZATION_CACHE_KEY', 'khf.localization'),
+        'cache_ttl' => (int) env('LOCALIZATION_CACHE_TTL', 0),
+
+        // Fallback strategy when a value is missing in the requested locale:
+        //   'chain'  → requested → locale.fallback_code chain → default → missing-behavior
+        //   'strict' → requested only
+        'fallback_strategy' => env('LOCALIZATION_FALLBACK', 'chain'),
+
+        // What resolve() returns when nothing resolves: 'null' | 'key' | 'empty'.
+        'missing_translation' => env('LOCALIZATION_MISSING', 'null'),
+
+        // Whether the default locale is prefixed in localized URLs (false → bare path).
+        'prefix_default_locale' => (bool) env('LOCALIZATION_PREFIX_DEFAULT', true),
+
+        // Seed locales when the `locales` table is empty (bootstrap defaults).
+        // alias = public-facing URL segment (e.g. frontend uses 'tj' for internal 'tg').
+        'seed' => [
+            ['code' => 'tg', 'name' => 'Tajik',   'native_name' => 'Тоҷикӣ',  'direction' => 'ltr', 'is_default' => true,  'is_active' => true, 'fallback_code' => null, 'alias' => 'tj',   'sort_order' => 1],
+            ['code' => 'ru', 'name' => 'Russian', 'native_name' => 'Русский', 'direction' => 'ltr', 'is_default' => false, 'is_active' => true, 'fallback_code' => 'tg', 'alias' => null,   'sort_order' => 2],
+            ['code' => 'en', 'name' => 'English', 'native_name' => 'English', 'direction' => 'ltr', 'is_default' => false, 'is_active' => true, 'fallback_code' => 'tg', 'alias' => null,   'sort_order' => 3],
+        ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | KHF Engine — First-party Modules
     |--------------------------------------------------------------------------
     | Associative array of name => FQCN for each module to bootstrap.
@@ -151,6 +186,7 @@ return [
         'media' => MediaModule::class,
         'settings' => SettingsModule::class,
         'navigation' => NavigationModule::class,
+        'localization' => LocalizationModule::class,
     ],
 
     /*
